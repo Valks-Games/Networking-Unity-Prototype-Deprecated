@@ -1,6 +1,4 @@
-# Server
-[Client](https://github.com/valkyrienyanko/Client)
-
+# Unity's 2018 Networking Stack
 Unity LLAPI Networking Server
 
 ```batch
