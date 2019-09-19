@@ -4,7 +4,13 @@ using UnityEngine;
 
 public class Player
 {
-    private Vector3 position;
+    public Vector3 position;
+    public int connectionId;
+
+    public Player(int connectionId)
+    {
+        this.connectionId = connectionId;
+    }
 
     public void UpdatePosition(Vector3 position)
     {

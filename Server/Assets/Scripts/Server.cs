@@ -16,7 +16,8 @@ public class Server : MonoBehaviour
     private byte reliableChannel;
     private int hostId;
 
-    private Dictionary<int, Player> players = new Dictionary<int, Player>();
+    private List<int> connectionIds = new List<int>();
+    //private List<Player> players = new List<Player>();
 
     #region MonoBehaviour
     private void Start()
@@ -69,9 +70,15 @@ public class Server : MonoBehaviour
             case NetworkEventType.Nothing:
                 break;
             case NetworkEventType.ConnectEvent:
+                connectionIds.Add(connectionId);
+                //players.Add(new Player(connectionId));
                 Debug.Log(string.Format("User {0} has connected.", connectionId));
                 break;
             case NetworkEventType.DisconnectEvent:
+                connectionIds.Remove(connectionId);
+                /*foreach (var player in players)
+                    if (player.connectionId == connectionId)
+                        players.Remove(player);*/
                 Debug.Log(string.Format("User {0} has disconnected.", connectionId));
                 break;
             case NetworkEventType.DataEvent:
@@ -97,24 +104,20 @@ public class Server : MonoBehaviour
                 float y = BitConverter.ToSingle(recBuffer, 5);
                 float z = BitConverter.ToSingle(recBuffer, 9);
 
-                if (players.ContainsKey(connectionId))
-                {
-                    Player player = players[connectionId];
-                    player.UpdatePosition(new Vector3(x, y, z));
-                }
-                else
-                {
-                    Player player = new Player();
-                    player.UpdatePosition(new Vector3(x, y, z));
-                    players.Add(connectionId, new Player());
-                }
+                /*foreach (var player in players)
+                    if (player.connectionId == connectionId)
+                        player.UpdatePosition(new Vector3(x, y, z));*/
 
                 byte[] buffer = new byte[BYTE_SIZE];
-                buffer[0] = 1; // Position
-                BitConverter.GetBytes(x).CopyTo(buffer, 1);
-                BitConverter.GetBytes(y).CopyTo(buffer, 5);
-                BitConverter.GetBytes(z).CopyTo(buffer, 9);
-                SendData(connectionId, buffer);
+                buffer[0] = 1; // Of Type Position Data
+                buffer[1] = (byte) connectionId;
+                BitConverter.GetBytes(x).CopyTo(buffer, 2); // Position Data
+                BitConverter.GetBytes(y).CopyTo(buffer, 6);
+                BitConverter.GetBytes(z).CopyTo(buffer, 10);
+
+                for (int i = 0; i < connectionIds.Count; i++)
+                    if (connectionIds[i] != connectionId)
+                        SendData(connectionIds[i], buffer);
                 break;
             default:
                 break;
