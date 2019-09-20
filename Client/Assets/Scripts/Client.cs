@@ -16,12 +16,15 @@ public class Client : MonoBehaviour
     private GameObject player;
     private Transform playerTransform;
 
+    private InputField inputField;
+
     private Dictionary<int, GameObject> clients = new Dictionary<int, GameObject>();
     private Dictionary<int, Vector3> newPositions = new Dictionary<int, Vector3>();
 
     private const int MAX_CLIENTS = 32;
     private const int PORT = 7777;
-    private const int BYTE_SIZE = 1024;
+    private const int BYTE_SIZE = 64;
+    private const float SEND_DELAY = 0.3f;
 
     private string serverIp;
 
@@ -36,10 +39,15 @@ public class Client : MonoBehaviour
     private IEnumerator playerPositionDataCoroutine;
 
     #region MonoBehaviour
+    private void Awake()
+    {
+        inputField = GameObject.Find("InputField").GetComponent<InputField>();
+    }
     private void Start()
     {
         DontDestroyOnLoad(gameObject);
         Application.targetFrameRate = 60;
+        inputField.text = "127.0.0.1";
     }
     private void Update()
     {
@@ -72,7 +80,7 @@ public class Client : MonoBehaviour
 
     private IEnumerator InitializeNetwork()
     {
-        serverIp = GameObject.Find("InputField").GetComponent<InputField>().text;
+        serverIp = inputField.text;
 
         while (loadingScene)
             yield return new WaitForSeconds(0.1f);
@@ -148,11 +156,19 @@ public class Client : MonoBehaviour
         switch (recBuffer[0])
         {
             case 1: // Server sending positions of all other clients.
-                // Position data from our other clients.
-                int connectionId = recBuffer[1];
-                float x = BitConverter.ToSingle(recBuffer, 2);
-                float y = BitConverter.ToSingle(recBuffer, 6);
-                float z = BitConverter.ToSingle(recBuffer, 10);
+            // Position data from our other clients.
+            int playerCount = recBuffer[1];
+
+            int i = 0;
+            string message = "";
+            for (int n = 0; n < playerCount; n++)
+            {
+                int connectionId = recBuffer[i + 2];
+                float x = BitConverter.ToSingle(recBuffer, i + 3);
+                float y = BitConverter.ToSingle(recBuffer, i + 7);
+                float z = BitConverter.ToSingle(recBuffer, i + 11);
+
+                message += "Connection ID: " + connectionId + ", x: " + x + ", y: " + y + ", z: " + z + "\n";
 
                 // Add new clients if they were not already added.
                 if (!clients.ContainsKey(connectionId))
@@ -163,6 +179,10 @@ public class Client : MonoBehaviour
                 }
 
                 newPositions[connectionId] = new Vector3(x, y, z);
+
+                i += 15; // ?
+            }
+            Debug.Log(message);
                 break;
             default:
                 break;
@@ -201,7 +221,7 @@ public class Client : MonoBehaviour
         while (true)
         {
             PlayerPositionData();
-            yield return new WaitForSeconds(0.25f);
+            yield return new WaitForSeconds(SEND_DELAY);
         }
     }
 
