@@ -13,14 +13,7 @@ If you prefer to use the terminal for the server build, make sure when building 
 
 #### Standalone
 Commands
-```yml
-exit
-stop
-start
-restart
-say <message>
-kick <connection ID>
-```
+`exit` `stop` `start` `restart` `say` `kick`
 
 ## Building the Client
 Nothing much to say about this right now.
