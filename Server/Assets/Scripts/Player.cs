@@ -8,7 +8,7 @@ public class Player
     public Vector3 position;
     public int connectionId;
 
-    private Player(int connectionId)
+    public Player(int connectionId)
     {
         this.connectionId = connectionId;
     }

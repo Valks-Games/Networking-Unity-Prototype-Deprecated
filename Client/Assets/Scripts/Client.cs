@@ -163,10 +163,10 @@ public class Client : MonoBehaviour
             string message = "";
             for (int n = 0; n < playerCount; n++)
             {
-                int connectionId = recBuffer[i + 2];
+                int connectionId = recBuffer[i + 2]; // for next round, 13 + 2 = 15 which is good
                 float x = BitConverter.ToSingle(recBuffer, i + 3);
                 float y = BitConverter.ToSingle(recBuffer, i + 7);
-                float z = BitConverter.ToSingle(recBuffer, i + 11);
+                float z = BitConverter.ToSingle(recBuffer, i + 11); // to 14 (so we want 15 next)
 
                 message += "Connection ID: " + connectionId + ", x: " + x + ", y: " + y + ", z: " + z + "\n";
 
@@ -180,7 +180,7 @@ public class Client : MonoBehaviour
 
                 newPositions[connectionId] = new Vector3(x, y, z);
 
-                i += 15; // ?
+                i += 13; // ?
             }
             Debug.Log(message);
                 break;

@@ -3,6 +3,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -59,6 +61,7 @@ public class Server : MonoBehaviour
                 // Create the buffer.
                 byte[] buffer = new byte[BYTE_SIZE];
                 buffer[0] = 1; // Of Type Position Data
+
                 buffer[1] = (byte)players.Count;
 
                 int i = 0; // Index
