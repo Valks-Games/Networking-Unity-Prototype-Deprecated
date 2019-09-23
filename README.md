@@ -2,7 +2,7 @@
 2018 Unity Networking Stack
 
 ## Contributing
-Take a look at the current issues. https://github.com/valkyrienyanko/Networking-Unity-Prototype/issues
+Take a look at the [current issues](https://github.com/valkyrienyanko/Networking-Unity-Prototype/issues).
 
 ## Building the Server
 #### Terminal
