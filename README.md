@@ -12,7 +12,8 @@ If you prefer to use the terminal for the server build, make sure when building 
 ```
 
 #### Standalone
-Visual Interactive Terminal Under development.
+Commands
+`exit` `stop` `start` `restart` `say` `kick`
 
 ## Building the Client
 Nothing much to say about this right now.
