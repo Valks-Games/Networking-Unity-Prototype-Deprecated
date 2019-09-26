@@ -2,7 +2,7 @@
 2018 Unity Networking Stack
 
 ## Contributing
-Contact me on discord, **valk#3277**.
+Take a look at the [current issues](https://github.com/valkyrienyanko/Networking-Unity-Prototype/issues).
 
 ## Building the Server
 #### Terminal
