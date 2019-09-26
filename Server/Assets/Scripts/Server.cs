@@ -16,8 +16,8 @@ public class Server : MonoBehaviour
 
     private const int MAX_CLIENTS = 32;
     private const int PORT = 7777;
-    private const int BYTE_SIZE = 64;
-    private const float SEND_DELAY = 1.0f;
+    private const int REC_BYTE_SIZE = 1024;
+    private const float SEND_DELAY = 0.1f;
 
     private byte error;
     private byte reliableChannel;
@@ -30,6 +30,8 @@ public class Server : MonoBehaviour
     private List<int> connectionIds = new List<int>();
 
     private IEnumerator sendingData;
+
+    private Dictionary<int, Vector3> prevPositions = new Dictionary<int, Vector3>();
 
     #region MonoBehaviour
     private void Awake()
@@ -51,15 +53,30 @@ public class Server : MonoBehaviour
     private IEnumerator SendData()
     {
         sendData = true;
-
         while (sendData)
         {
             List<Player> players = Player.GetPlayers();
 
-            if (players.Count > 0)
+            int numPlayers = players.Count;
+
+            List<int> exclude = new List<int>();
+
+            foreach (Player player in players.ToArray())
+            {
+                if (prevPositions.ContainsKey(player.connectionId))
+                {
+                    if (player.position.Equals(prevPositions[player.connectionId]))
+                    {
+                        exclude.Add(player.connectionId);
+                        numPlayers--;
+                    }
+                }
+            }
+
+            if (numPlayers > 0)
             {
                 // Create the buffer.
-                byte[] buffer = new byte[BYTE_SIZE];
+                byte[] buffer = new byte[numPlayers * 16];
                 buffer[0] = 1; // Of Type Position Data
 
                 buffer[1] = (byte)players.Count;
@@ -67,6 +84,9 @@ public class Server : MonoBehaviour
                 int i = 0; // Index
                 foreach (Player player in players.ToArray())
                 {
+                    if (exclude.Contains(player.connectionId))
+                        continue;
+
                     buffer[i + 2] = (byte)player.connectionId;
 
                     Vector3 pos = player.position;
@@ -74,12 +94,27 @@ public class Server : MonoBehaviour
                     BitConverter.GetBytes(pos.x).CopyTo(buffer, i + 3); // Position Data
                     BitConverter.GetBytes(pos.y).CopyTo(buffer, i + 7);
                     BitConverter.GetBytes(pos.z).CopyTo(buffer, i + 11);
+
+                    i += 13;
                 }
 
                 // Finished creating the buffer.
                 // Send the buffer to everyone.
                 foreach (Player player in players.ToArray())
+                {
+                    if (exclude.Contains(player.connectionId))
+                        continue;
+
                     SendData(player.connectionId, buffer);
+                }
+
+                foreach (Player player in players.ToArray())
+                {
+                    if (!prevPositions.ContainsKey(player.connectionId))
+                    {
+                        prevPositions.Add(player.connectionId, player.position);
+                    }
+                }
             }
 
             yield return new WaitForSeconds(SEND_DELAY);
@@ -128,7 +163,7 @@ public class Server : MonoBehaviour
             return;
         // Which lane are they sending the message?
 
-        byte[] recBuffer = new byte[BYTE_SIZE];
+        byte[] recBuffer = new byte[REC_BYTE_SIZE];
 
         NetworkEventType type = NetworkTransport.Receive(out int recHostId, out int connectionId, out int channelId, recBuffer, recBuffer.Length, out int dataSize, out error);
         switch (type)
@@ -146,6 +181,15 @@ public class Server : MonoBehaviour
                 Player.Remove(connectionId);
                 Debug.Log(string.Format("User {0} has disconnected.", connectionId));
                 console.Print("User " + connectionId + " has disconnected.");
+
+                // Inform all other clients this client has disconnected.
+                byte[] buffer = new byte[2];
+                buffer[0] = 0;
+                buffer[1] = (byte)connectionId;
+
+                foreach (Player player in Player.GetPlayers().ToArray())
+                    if (player.connectionId != connectionId)
+                        SendData(player.connectionId, buffer);
                 break;
             case NetworkEventType.DataEvent:
                 HandleData(connectionId, recBuffer);
@@ -193,7 +237,7 @@ public class Server : MonoBehaviour
     #region SendDataToClient
     private void SendData(int connectionId, byte[] buffer)
     {
-        NetworkTransport.Send(hostId, connectionId, reliableChannel, buffer, BYTE_SIZE, out error);
+        NetworkTransport.Send(hostId, connectionId, reliableChannel, buffer, buffer.Length, out error);
     }
     #endregion
 }

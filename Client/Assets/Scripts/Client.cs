@@ -23,8 +23,8 @@ public class Client : MonoBehaviour
 
     private const int MAX_CLIENTS = 32;
     private const int PORT = 7777;
-    private const int BYTE_SIZE = 64;
-    private const float SEND_DELAY = 0.3f;
+    private const int REC_BYTE_SIZE = 1024;
+    private const float SEND_DELAY = 0.1f;
 
     private string serverIp;
 
@@ -35,6 +35,8 @@ public class Client : MonoBehaviour
     private byte reliableChannel;
     private int connectionId;
     private byte error;
+    
+    private Vector3 prevPos = Vector3.zero;
 
     private IEnumerator playerPositionDataCoroutine;
 
@@ -58,7 +60,6 @@ public class Client : MonoBehaviour
         foreach (KeyValuePair<int, GameObject> client in clients)
         {
             Transform clientTransform = client.Value.transform;
-            //Debug.Log(newPositions[client.Key]);
             clientTransform.position = Vector3.Lerp(clientTransform.position, newPositions[client.Key], 0.06f);
         }
     }
@@ -120,7 +121,8 @@ public class Client : MonoBehaviour
             return;
         }
 
-        byte[] recBuffer = new byte[BYTE_SIZE];
+
+        byte[] recBuffer = new byte[REC_BYTE_SIZE];
 
         NetworkEventType type = NetworkTransport.Receive(out int recHostId, out int connectionId, out int channelId, recBuffer, recBuffer.Length, out int dataSize, out error);
         switch (type)
@@ -152,23 +154,30 @@ public class Client : MonoBehaviour
     }
     private void HandleData(byte[] recBuffer)
     {
-        // Check Message Type
-        switch (recBuffer[0])
+        if (recBuffer[0] == 0) // Server informing us a client has disconnected.
         {
-            case 1: // Server sending positions of all other clients.
+            int otherClientId = recBuffer[1];
+
+            if (otherClientId != connectionId)
+            {
+                Destroy(clients[otherClientId]);
+                clients.Remove(otherClientId);
+                newPositions.Remove(otherClientId);
+            }
+        }
+
+        if (recBuffer[0] == 1) // Server sending positions of all other clients.
+        {
             // Position data from our other clients.
             int playerCount = recBuffer[1];
 
             int i = 0;
-            string message = "";
             for (int n = 0; n < playerCount; n++)
             {
-                int connectionId = recBuffer[i + 2]; // for next round, 13 + 2 = 15 which is good
+                int connectionId = recBuffer[i + 2];
                 float x = BitConverter.ToSingle(recBuffer, i + 3);
                 float y = BitConverter.ToSingle(recBuffer, i + 7);
-                float z = BitConverter.ToSingle(recBuffer, i + 11); // to 14 (so we want 15 next)
-
-                message += "Connection ID: " + connectionId + ", x: " + x + ", y: " + y + ", z: " + z + "\n";
+                float z = BitConverter.ToSingle(recBuffer, i + 11);
 
                 // Add new clients if they were not already added.
                 if (!clients.ContainsKey(connectionId))
@@ -180,12 +189,8 @@ public class Client : MonoBehaviour
 
                 newPositions[connectionId] = new Vector3(x, y, z);
 
-                i += 13; // ?
+                i += 13;
             }
-            Debug.Log(message);
-                break;
-            default:
-                break;
         }
     }
     #endregion
@@ -230,17 +235,22 @@ public class Client : MonoBehaviour
     {
         Vector3 pos = playerTransform.position;
 
-        byte[] buffer = new byte[BYTE_SIZE];
-        buffer[0] = 1; // Position
-        BitConverter.GetBytes(pos.x).CopyTo(buffer, 1);
-        BitConverter.GetBytes(pos.y).CopyTo(buffer, 5);
-        BitConverter.GetBytes(pos.z).CopyTo(buffer, 9);
-        SendData(buffer);
+        if (Vector3.Distance(pos, prevPos) >= 0.1)
+        {
+            byte[] buffer = new byte[16];
+            buffer[0] = 1; // Position
+            BitConverter.GetBytes(pos.x).CopyTo(buffer, 1);
+            BitConverter.GetBytes(pos.y).CopyTo(buffer, 5);
+            BitConverter.GetBytes(pos.z).CopyTo(buffer, 9);
+            SendData(buffer);
+        }
+
+        prevPos = pos;
     }
 
     private void SendData(byte[] buffer)
     {
-        NetworkTransport.Send(hostId, connectionId, reliableChannel, buffer, BYTE_SIZE, out error);
+        NetworkTransport.Send(hostId, connectionId, reliableChannel, buffer, buffer.Length, out error);
     }
     #endregion
 }
